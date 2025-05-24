@@ -1,0 +1,450 @@
+---
+title: "ENTREGA_2"
+output: html_document
+date: "2025-05-23"
+---
+
+```{r}
+library(rvest)
+library(dplyr)
+library(rio)
+library(stringdist)
+```
+
+```{r}
+link1="https://docs.google.com/spreadsheets/d/e/2PACX-1vT2PqqJ56Pkk3UkhhzyiGNsPHxTWP9Q8kmiRW3zIeIKigzjXjPUc-AOn7m_0VQnZEy2GjwBCLkMSyFz/pub?output=csv"
+data1=read.csv(link1, stringsAsFactors = T)
+str(data1)
+```
+```{r}
+link2="https://docs.google.com/spreadsheets/d/e/2PACX-1vRgGzNHMcUpPZ4e0EEou7EBybCb09J6rf9ZvQMj74-DAbeSQahK_tVf4ud4i04B20ZemJa7nzasIBZY/pub?output=csv"
+data2=read.csv(link2, stringsAsFactors = T)
+str(data2)
+```
+
+```{r}
+link3="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgtJId_WUnWNq1la0JwnaG-IrXgXJ4RdHqk260mEf3Gq1OyGUszuAYYMY03fGSnuF6HHaW8IwVs5IP/pub?output=csv"
+data3=read.csv(link3, stringsAsFactors = T)
+str(data3)
+```
+```{r}
+data3$Filter.by.Trade.Value..US.. <- as.numeric(gsub("[^0-9]", "", data3$Filter.by.Trade.Value..US..))
+head(data3$Filter.by.Trade.Value..US..)
+```
+```{r}
+data3 <- data3 %>%
+  rename(Trade_Value_USD = Filter.by.Trade.Value..US..)
+```
+
+
+```{r}
+link4="https://docs.google.com/spreadsheets/d/e/2PACX-1vQrAnVTNXEHj8QYwJpywG3GK93iXimkOUlucgsou1VwISowMQhwFV0VQ8SR2Qp_b4jiw8qkE3FTlg22/pub?output=csv"
+data4=read.csv(link4, stringsAsFactors = T)
+str(data4)
+```
+
+```{r}
+link5="https://docs.google.com/spreadsheets/d/e/2PACX-1vT3fTRImmJVdN0xSiEliXZON9xDyuXUUitF8tg1A9KtccCwbZGf9-t3vOkqtPRc9CvZEk9voaaRqJYZ/pub?gid=1208987685&single=true&output=csv"
+data5=read.csv(link5, stringsAsFactors = T)
+str(data5)
+```
+```{r}
+data5 <- data5 %>%
+  filter(C.T == "c" & Edition == 2023)
+```
+
+
+```{r}
+link6="https://docs.google.com/spreadsheets/d/e/2PACX-1vTn9nCoQGfFvv8oc6FoZd5uLiCs2csRNlIvOpVp5remBivqeyluEVtzeiRkLskaqp6XaW0IYkOy0mfI/pub?output=csv"
+data6=read.csv(link6, stringsAsFactors = T)
+str(data6)
+```
+
+```{r}
+data6 <- data6 %>%
+  filter(year == 2022)
+```
+
+
+```{r}
+link7="https://docs.google.com/spreadsheets/d/e/2PACX-1vTbyjeKJsWdqqnpqf6AjVCXtZF4ZeAm8_8raC-1xbq82oyNbhRbCfuapec-fxVYSc6ElcDG_838htC3/pub?output=csv"
+data7=read.csv(link7, stringsAsFactors = T)
+str(data7)
+```
+
+```{r}
+data1$Country <- as.character(data1$Country)
+data2$Country <- as.character(data2$Country)
+data3$Country <- as.character(data3$Country)
+data4$Country <- as.character(data4$Country)
+data5$Country <- as.character(data5$Country)
+data6$Country <- as.character(data6$Country)
+data7$Country <- as.character(data7$Country)
+```
+
+
+#A MERGEAAAAAAR
+
+```{r}
+#Uniendo data1 y data2
+
+merge1_2_exact <- merge(data1, data2, by = 'Country', all = TRUE)
+cat("Filas en unión exacta (all=TRUE):", nrow(merge1_2_exact), "\n")
+cat("NAs en columna de data1 (ej. 'value' si existe):", sum(is.na(merge1_2_exact$Value..US..)), "\n") 
+cat("NAs en columna de data2 (ej. 'Valor'):", sum(is.na(merge1_2_exact$Valor)), "\n")
+
+
+onlyIndata1_nomatch <- sort(setdiff(data1$Country, data2$Country))
+onlyIndata2_nomatch <- sort(setdiff(data2$Country, data1$Country))
+
+if (length(onlyIndata1_nomatch) > 0 && length(onlyIndata2_nomatch) > 0) {
+  TheMatch <- character()
+  mindist <- numeric()
+
+  for (i in 1:length(onlyIndata1_nomatch)) {
+    allDistances <- stringdist::stringdist(onlyIndata1_nomatch[i], onlyIndata2_nomatch, method = 'jw')
+    mindist[i] <- min(allDistances)
+    TheMatch[i] <- onlyIndata2_nomatch[which.min(allDistances)]
+  }
+  fuzzyOutput_1_2 <- data.frame(input = onlyIndata1_nomatch, possible_match = TheMatch, divergence = mindist, stringsAsFactors = FALSE)
+
+  cat("\nResultados del Fuzzy Matching (data1 vs data2), ordenado por divergencia:\n")
+  fuzzyOutput_1_2_sorted <- fuzzyOutput_1_2[order(-fuzzyOutput_1_2$divergence),]
+  print(fuzzyOutput_1_2_sorted)
+
+  # --- INICIO DE CORRECCIÓN MANUAL para fuzzyOutput_1_2 ---
+  # Usa este formato para cada corrección que identifiques:
+  # fuzzyOutput_1_2 <- fuzzyOutput_1_2 %>%
+  #   mutate(
+  #     possible_match = case_when(
+  #       input == "Nombre Incorrecto Data1" ~ "Nombre Correcto Data2",
+  #       # ... más correcciones ...
+  #       TRUE ~ possible_match
+  #     ),
+  #     divergence = case_when(
+  #       input == "Nombre Incorrecto Data1" ~ stringdist::stringdist("Nombre Incorrecto Data1", "Nombre Correcto Data2", method = 'jw'),
+  #       # ... recalcular divergencias ...
+  #       TRUE ~ divergence
+  #     )
+  #   )
+  # Después de la corrección, puedes volver a ordenar y revisar:
+  # print(fuzzyOutput_1_2[order(-fuzzyOutput_1_2$divergence),])
+  # --- FIN DE CORRECCIÓN MANUAL ---
+
+  best_fuzzy_1_2 <- fuzzyOutput_1_2[fuzzyOutput_1_2$divergence <= 0.35 & !is.na(fuzzyOutput_1_2$possible_match),]
+  cat("\nMejores coincidencias seleccionadas para data1 y data2 (divergencia <= 0.35):\n")
+  print(best_fuzzy_1_2)
+
+  for (i in 1:nrow(best_fuzzy_1_2)) {
+    idx_in_data1 <- which(data1$Country == best_fuzzy_1_2$input[i])
+    if (length(idx_in_data1) > 0) {
+      data1$Country[idx_in_data1] <- best_fuzzy_1_2$possible_match[i]
+    }
+  }
+  cat("\nNombres de país en data1 actualizados:\n")
+  head(data1$Country)
+} else {
+  cat("\nNo hay diferencias significativas para aplicar fuzzy matching entre data1 y data2, o uno de los conjuntos está vacío.\n")
+}
+
+merged_data_base <- merge(data1, data2, by = 'Country', all = TRUE)
+cat("\nDimensiones de la tabla base fusionada (data1+data2):", dim(merged_data_base), "\n")
+```
+
+PASO 2
+```{r}
+#Uniendo base (data1+data2) con data3
+
+# Identificar diferencias para fuzzy matching
+onlyInBase_nomatch_3 <- sort(setdiff(merged_data_base$Country, data3$Country))
+onlyInData3_nomatch_base <- sort(setdiff(data3$Country, merged_data_base$Country))
+
+if (length(onlyInBase_nomatch_3) > 0 && length(onlyInData3_nomatch_base) > 0) {
+  TheMatch_3 <- character()
+  mindist_3 <- numeric()
+
+  for (i in 1:length(onlyInBase_nomatch_3)) {
+    allDistances_3 <- stringdist::stringdist(onlyInBase_nomatch_3[i], onlyInData3_nomatch_base, method = 'jw')
+    mindist_3[i] <- min(allDistances_3)
+    TheMatch_3[i] <- onlyInData3_nomatch_base[which.min(allDistances_3)]
+  }
+  fuzzyOutput_base_3 <- data.frame(input = onlyInBase_nomatch_3, possible_match = TheMatch_3, divergence = mindist_3, stringsAsFactors = FALSE)
+
+  cat("\nResultados del Fuzzy Matching (base vs data3), ordenado por divergencia:\n")
+  fuzzyOutput_base_3_sorted <- fuzzyOutput_base_3[order(-fuzzyOutput_base_3$divergence),]
+  print(fuzzyOutput_base_3_sorted)
+
+  # --- INICIO DE CORRECCIÓN MANUAL para fuzzyOutput_base_3 ---
+  # fuzzyOutput_base_3 <- fuzzyOutput_base_3 %>%
+  #   mutate(
+  #     possible_match = case_when(
+  #       input == "Nombre Incorrecto Base" ~ "Nombre Correcto Data3",
+  #       TRUE ~ possible_match
+  #     ),
+  #     divergence = case_when(
+  #       input == "Nombre Incorrecto Base" ~ stringdist::stringdist("Nombre Incorrecto Base", "Nombre Correcto Data3", method = 'jw'),
+  #       TRUE ~ divergence
+  #     )
+  #   )
+  # --- FIN DE CORRECCIÓN MANUAL ---
+
+  best_fuzzy_base_3 <- fuzzyOutput_base_3[fuzzyOutput_base_3$divergence <= 0.35 & !is.na(fuzzyOutput_base_3$possible_match),]
+  cat("\nMejores coincidencias seleccionadas para base y data3 (divergencia <= 0.35):\n")
+  print(best_fuzzy_base_3)
+
+  for (i in 1:nrow(best_fuzzy_base_3)) {
+    idx_in_base <- which(merged_data_base$Country == best_fuzzy_base_3$input[i])
+    if (length(idx_in_base) > 0) {
+      merged_data_base$Country[idx_in_base] <- best_fuzzy_base_3$possible_match[i]
+    }
+  }
+  cat("\nNombres de país en la base actualizados para coincidir con data3:\n")
+  head(merged_data_base$Country)
+} else {
+  cat("\nNo hay diferencias significativas para aplicar fuzzy matching entre la base y data3.\n")
+}
+
+merged_data_base <- merge(merged_data_base, data3, by = 'Country', all = TRUE)
+cat("\nDimensiones de la tabla fusionada (base+data3):", dim(merged_data_base), "\n")
+```
+
+PASO 3: 
+
+```{r}
+#Uniendo base (data1+data2+data3) con data4
+
+onlyInBase_nomatch_4 <- sort(setdiff(merged_data_base$Country, data4$Country))
+onlyInData4_nomatch_base <- sort(setdiff(data4$Country, merged_data_base$Country))
+
+if (length(onlyInBase_nomatch_4) > 0 && length(onlyInData4_nomatch_base) > 0) {
+  TheMatch_4 <- character()
+  mindist_4 <- numeric()
+
+  for (i in 1:length(onlyInBase_nomatch_4)) {
+    allDistances_4 <- stringdist::stringdist(onlyInBase_nomatch_4[i], onlyInData4_nomatch_base, method = 'jw')
+    mindist_4[i] <- min(allDistances_4)
+    TheMatch_4[i] <- onlyInData4_nomatch_base[which.min(allDistances_4)]
+  }
+  fuzzyOutput_base_4 <- data.frame(input = onlyInBase_nomatch_4, possible_match = TheMatch_4, divergence = mindist_4, stringsAsFactors = FALSE)
+
+  cat("\nResultados del Fuzzy Matching (base vs data4), ordenado por divergencia:\n")
+  fuzzyOutput_base_4_sorted <- fuzzyOutput_base_4[order(-fuzzyOutput_base_4$divergence),]
+  print(fuzzyOutput_base_4_sorted)
+
+  # --- INICIO DE CORRECCIÓN MANUAL para fuzzyOutput_base_4 ---
+  # fuzzyOutput_base_4 <- fuzzyOutput_base_4 %>%
+  #   mutate(
+  #     possible_match = case_when(
+  #       input == "Nombre Incorrecto Base" ~ "Nombre Correcto Data4",
+  #       TRUE ~ possible_match
+  #     ),
+  #     divergence = case_when(
+  #       input == "Nombre Incorrecto Base" ~ stringdist::stringdist("Nombre Incorrecto Base", "Nombre Correcto Data4", method = 'jw'),
+  #       TRUE ~ divergence
+  #     )
+  #   )
+  # --- FIN DE CORRECCIÓN MANUAL ---
+
+  best_fuzzy_base_4 <- fuzzyOutput_base_4[fuzzyOutput_base_4$divergence <= 0.35 & !is.na(fuzzyOutput_base_4$possible_match),]
+  cat("\nMejores coincidencias seleccionadas para base y data4 (divergencia <= 0.35):\n")
+  print(best_fuzzy_base_4)
+
+  for (i in 1:nrow(best_fuzzy_base_4)) {
+    idx_in_base <- which(merged_data_base$Country == best_fuzzy_base_4$input[i])
+    if (length(idx_in_base) > 0) {
+      merged_data_base$Country[idx_in_base] <- best_fuzzy_base_4$possible_match[i]
+    }
+  }
+  cat("\nNombres de país en la base actualizados para coincidir con data4:\n")
+  head(merged_data_base$Country)
+} else {
+  cat("\nNo hay diferencias significativas para aplicar fuzzy matching entre la base y data4.\n")
+}
+
+merged_data_base <- merge(merged_data_base, data4, by = 'Country', all = TRUE)
+cat("\nDimensiones de la tabla fusionada (base+data4):", dim(merged_data_base), "\n")
+```
+
+PASO 4:
+```{r}
+#Uniendo base (data1+data2+data3+data4) con data5
+
+onlyInBase_nomatch_5 <- sort(setdiff(merged_data_base$Country, data5$Country))
+onlyInData5_nomatch_base <- sort(setdiff(data5$Country, merged_data_base$Country))
+
+if (length(onlyInBase_nomatch_5) > 0 && length(onlyInData5_nomatch_base) > 0) {
+  TheMatch_5 <- character()
+  mindist_5 <- numeric()
+
+  for (i in 1:length(onlyInBase_nomatch_5)) {
+    allDistances_5 <- stringdist::stringdist(onlyInBase_nomatch_5[i], onlyInData5_nomatch_base, method = 'jw')
+    mindist_5[i] <- min(allDistances_5)
+    TheMatch_5[i] <- onlyInData5_nomatch_base[which.min(allDistances_5)]
+  }
+  fuzzyOutput_base_5 <- data.frame(input = onlyInBase_nomatch_5, possible_match = TheMatch_5, divergence = mindist_5, stringsAsFactors = FALSE)
+
+  cat("\nResultados del Fuzzy Matching (base vs data5), ordenado por divergencia:\n")
+  fuzzyOutput_base_5_sorted <- fuzzyOutput_base_5[order(-fuzzyOutput_base_5$divergence),]
+  print(fuzzyOutput_base_5_sorted)
+
+  # --- INICIO DE CORRECCIÓN MANUAL para fuzzyOutput_base_5 ---
+  # fuzzyOutput_base_5 <- fuzzyOutput_base_5 %>%
+  #   mutate(
+  #     possible_match = case_when(
+  #       input == "Nombre Incorrecto Base" ~ "Nombre Correcto Data5",
+  #       TRUE ~ possible_match
+  #     ),
+  #     divergence = case_when(
+  #       input == "Nombre Incorrecto Base" ~ stringdist::stringdist("Nombre Incorrecto Base", "Nombre Correcto Data5", method = 'jw'),
+  #       TRUE ~ divergence
+  #     )
+  #   )
+  # --- FIN DE CORRECCIÓN MANUAL ---
+
+  best_fuzzy_base_5 <- fuzzyOutput_base_5[fuzzyOutput_base_5$divergence <= 0.35 & !is.na(fuzzyOutput_base_5$possible_match),]
+  cat("\nMejores coincidencias seleccionadas para base y data5 (divergencia <= 0.35):\n")
+  print(best_fuzzy_base_5)
+
+  for (i in 1:nrow(best_fuzzy_base_5)) {
+    idx_in_base <- which(merged_data_base$Country == best_fuzzy_base_5$input[i])
+    if (length(idx_in_base) > 0) {
+      merged_data_base$Country[idx_in_base] <- best_fuzzy_base_5$possible_match[i]
+    }
+  }
+  cat("\nNombres de país en la base actualizados para coincidir con data5:\n")
+  head(merged_data_base$Country)
+} else {
+  cat("\nNo hay diferencias significativas para aplicar fuzzy matching entre la base y data5.\n")
+}
+
+merged_data_base <- merge(merged_data_base, data5, by = 'Country', all = TRUE)
+cat("\nDimensiones de la tabla fusionada (base+data5):", dim(merged_data_base), "\n")
+```
+
+PASO 5: 
+```{r}
+#Uniendo base (data1+data2+data3+data4+data5) con data6
+
+onlyInBase_nomatch_6 <- sort(setdiff(merged_data_base$Country, data6$Country))
+onlyInData6_nomatch_base <- sort(setdiff(data6$Country, merged_data_base$Country))
+
+if (length(onlyInBase_nomatch_6) > 0 && length(onlyInData6_nomatch_base) > 0) {
+  TheMatch_6 <- character()
+  mindist_6 <- numeric()
+
+  for (i in 1:length(onlyInBase_nomatch_6)) {
+    allDistances_6 <- stringdist::stringdist(onlyInBase_nomatch_6[i], onlyInData6_nomatch_base, method = 'jw')
+    mindist_6[i] <- min(allDistances_6)
+    TheMatch_6[i] <- onlyInData6_nomatch_base[which.min(allDistances_6)]
+  }
+  fuzzyOutput_base_6 <- data.frame(input = onlyInBase_nomatch_6, possible_match = TheMatch_6, divergence = mindist_6, stringsAsFactors = FALSE)
+
+  cat("\nResultados del Fuzzy Matching (base vs data6), ordenado por divergencia:\n")
+  fuzzyOutput_base_6_sorted <- fuzzyOutput_base_6[order(-fuzzyOutput_base_6$divergence),]
+  print(fuzzyOutput_base_6_sorted)
+
+  # --- INICIO DE CORRECCIÓN MANUAL para fuzzyOutput_base_6 ---
+  # fuzzyOutput_base_6 <- fuzzyOutput_base_6 %>%
+  #   mutate(
+  #     possible_match = case_when(
+  #       input == "Nombre Incorrecto Base" ~ "Nombre Correcto Data6",
+  #       TRUE ~ possible_match
+  #     ),
+  #     divergence = case_when(
+  #       input == "Nombre Incorrecto Base" ~ stringdist::stringdist("Nombre Incorrecto Base", "Nombre Correcto Data6", method = 'jw'),
+  #       TRUE ~ divergence
+  #     )
+  #   )
+  # --- FIN DE CORRECCIÓN MANUAL ---
+
+  best_fuzzy_base_6 <- fuzzyOutput_base_6[fuzzyOutput_base_6$divergence <= 0.35 & !is.na(fuzzyOutput_base_6$possible_match),]
+  cat("\nMejores coincidencias seleccionadas para base y data6 (divergencia <= 0.35):\n")
+  print(best_fuzzy_base_6)
+
+  for (i in 1:nrow(best_fuzzy_base_6)) {
+    idx_in_base <- which(merged_data_base$Country == best_fuzzy_base_6$input[i])
+    if (length(idx_in_base) > 0) {
+      merged_data_base$Country[idx_in_base] <- best_fuzzy_base_6$possible_match[i]
+    }
+  }
+  cat("\nNombres de país en la base actualizados para coincidir con data6:\n")
+  head(merged_data_base$Country)
+} else {
+  cat("\nNo hay diferencias significativas para aplicar fuzzy matching entre la base y data6.\n")
+}
+
+merged_data_base <- merge(merged_data_base, data6, by = 'Country', all = TRUE)
+cat("\nDimensiones de la tabla fusionada (base+data6):", dim(merged_data_base), "\n")
+```
+
+PASO 6:
+
+```{r}
+#Uniendo base (data1+data2+data3+data4+data5+data6) con data7
+
+onlyInBase_nomatch_7 <- sort(setdiff(merged_data_base$Country, data7$Country))
+onlyInData7_nomatch_base <- sort(setdiff(data7$Country, merged_data_base$Country))
+
+if (length(onlyInBase_nomatch_7) > 0 && length(onlyInData7_nomatch_base) > 0) {
+  TheMatch_7 <- character()
+  mindist_7 <- numeric()
+
+  for (i in 1:length(onlyInBase_nomatch_7)) {
+    allDistances_7 <- stringdist::stringdist(onlyInBase_nomatch_7[i], onlyInData7_nomatch_base, method = 'jw')
+    mindist_7[i] <- min(allDistances_7)
+    TheMatch_7[i] <- onlyInData7_nomatch_base[which.min(allDistances_7)]
+  }
+  fuzzyOutput_base_7 <- data.frame(input = onlyInBase_nomatch_7, possible_match = TheMatch_7, divergence = mindist_7, stringsAsFactors = FALSE)
+
+  fuzzyOutput_base_7_sorted <- fuzzyOutput_base_7[order(-fuzzyOutput_base_7$divergence),]
+  print(fuzzyOutput_base_7_sorted)
+
+  # --- INICIO DE CORRECCIÓN MANUAL para fuzzyOutput_base_7 ---
+  # fuzzyOutput_base_7 <- fuzzyOutput_base_7 %>%
+  #   mutate(
+  #     possible_match = case_when(
+  #       input == "Nombre Incorrecto Base" ~ "Nombre Correcto Data7",
+  #       TRUE ~ possible_match
+  #     ),
+  #     divergence = case_when(
+  #       input == "Nombre Incorrecto Base" ~ stringdist::stringdist("Nombre Incorrecto Base", "Nombre Correcto Data7", method = 'jw'),
+  #       TRUE ~ divergence
+  #     )
+  #   )
+  # --- FIN DE CORRECCIÓN MANUAL ---
+
+  best_fuzzy_base_7 <- fuzzyOutput_base_7[fuzzyOutput_base_7$divergence <= 0.35 & !is.na(fuzzyOutput_base_7$possible_match),]
+  cat("\nMejores coincidencias seleccionadas para base y data7 (divergencia <= 0.35):\n")
+  print(best_fuzzy_base_7)
+
+  for (i in 1:nrow(best_fuzzy_base_7)) {
+    idx_in_base <- which(merged_data_base$Country == best_fuzzy_base_7$input[i])
+    if (length(idx_in_base) > 0) {
+      merged_data_base$Country[idx_in_base] <- best_fuzzy_base_7$possible_match[i]
+    }
+  }
+  cat("\nNombres de país en la base actualizados para coincidir con data7:\n")
+  head(merged_data_base$Country)
+} else {
+  cat("\nNo hay diferencias significativas para aplicar fuzzy matching entre la base y data7.\n")
+}
+
+final_merged_data <- merge(merged_data_base, data7, by = 'Country', all = TRUE)
+cat("\nDimensiones de la tabla fusionada FINAL:", dim(final_merged_data), "\n")
+```
+
+RESULTADO FINAL, BASE DE DATOS COMPLETA
+```{r}
+head(final_merged_data)
+```
+```{r}
+final_merged_data <- final_merged_data %>%
+  select(-Edition, -year, -C.T)
+```
+
+
+```{r}
+final_merged_data_sin_NA_base <- na.omit(final_merged_data)
+```
+
+
